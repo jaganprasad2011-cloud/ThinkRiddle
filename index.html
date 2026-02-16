@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>ThinkRiddle</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+
+<style>
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:'Poppins',sans-serif;
+}
+
+body{
+    min-height:100vh;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    background:linear-gradient(135deg,#6d28d9,#9333ea,#7c3aed);
+    transition:0.3s ease;
+}
+
+body.light{
+    background:linear-gradient(135deg,#e0e7ff,#c7d2fe,#ddd6fe);
+}
+
+canvas{
+    position:fixed;
+    inset:0;
+    z-index:-1;
+}
+
+/* Screens */
+.screen{
+    display:none;
+    width:100%;
+    justify-content:center;
+    align-items:center;
+}
+
+.active{
+    display:flex;
+}
+
+/* Card */
+.card{
+    width:460px;
+    padding:40px;
+    border-radius:24px;
+    background:white;
+    box-shadow:0 25px 50px rgba(0,0,0,0.15);
+    text-align:center;
+}
+
+.logo{
+    font-size:30px;
+    font-weight:700;
+    margin-bottom:25px;
+    color:#6d28d9;
+}
+
+h2{
+    margin-bottom:15px;
+    font-weight:600;
+    color:#4c1d95;
+}
+
+h3{
+    margin:20px 0;
+    font-weight:500;
+    font-size:18px;
+    color:#1e1b4b;
+}
+
+input, select{
+    width:100%;
+    padding:14px;
+    margin-top:12px;
+    border-radius:14px;
+    border:2px solid #e9d5ff;
+    font-size:14px;
+}
+
+input:focus{
+    border-color:#7c3aed;
+    outline:none;
+}
+
+button{
+    width:100%;
+    padding:14px;
+    margin-top:14px;
+    border-radius:16px;
+    border:none;
+    font-weight:600;
+    font-size:14px;
+    cursor:pointer;
+    transition:0.2s ease;
+    background:#7c3aed;
+    color:white;
+}
+
+button:hover{
+    background:#6d28d9;
+    transform:translateY(-2px);
+}
+
+.secondary{
+    background:#ede9fe;
+    color:#4c1d95;
+}
+
+.timer{
+    margin-top:10px;
+    font-weight:600;
+    color:#6d28d9;
+}
+
+#scoreDisplay{
+    margin-top:12px;
+    font-weight:600;
+    color:#4c1d95;
+}
+
+.correct{
+    margin-top:12px;
+    color:#16a34a;
+    font-weight:600;
+}
+
+.wrong{
+    margin-top:12px;
+    color:#dc2626;
+    font-weight:600;
+}
+
+@media(max-width:480px){
+    .card{
+        width:92%;
+        padding:25px;
+    }
+}
+</style>
+</head>
+
+<body>
+
+<canvas id="particles"></canvas>
+
+<!-- HOME -->
+<div class="screen active" id="home">
+<div class="card">
+<div class="logo">ThinkRiddle</div>
+<button onclick="showScreen('game')">Start Game</button>
+<button onclick="showScreen('daily')">Daily Riddle</button>
+<button onclick="showScreen('leaderboard')">Leaderboard</button>
+<button onclick="showScreen('settings')">Settings</button>
+</div>
+</div>
+
+<!-- GAME -->
+<div class="screen" id="game">
+<div class="card">
+<h2>Game Mode</h2>
+
+<select id="difficulty">
+<option value="easy">Easy</option>
+<option value="medium">Medium</option>
+<option value="hard">Hard</option>
+</select>
+
+<h3 id="question">Click Start</h3>
+<div class="timer" id="timer"></div>
+
+<input type="text" id="answer" placeholder="Your answer">
+
+<button onclick="startGame()">Start</button>
+<button onclick="submitAnswer()">Submit</button>
+
+<div id="result"></div>
+<div id="scoreDisplay">Score: 0</div>
+
+<button class="secondary" onclick="showScreen('home')">Back</button>
+</div>
+</div>
+
+<!-- DAILY -->
+<div class="screen" id="daily">
+<div class="card">
+<h2>Daily Riddle</h2>
+<h3 id="dailyQuestion"></h3>
+<input type="text" id="dailyAnswer" placeholder="Your answer">
+<button onclick="checkDaily()">Submit</button>
+<div id="dailyResult"></div>
+<button class="secondary" onclick="showScreen('home')">Back</button>
+</div>
+</div>
+
+<!-- LEADERBOARD -->
+<div class="screen" id="leaderboard">
+<div class="card">
+<h2>Leaderboard</h2>
+<div id="bestScore"></div>
+<button onclick="resetScore()">Reset Score</button>
+<button class="secondary" onclick="showScreen('home')">Back</button>
+</div>
+</div>
+
+<!-- SETTINGS -->
+<div class="screen" id="settings">
+<div class="card">
+<h2>Settings</h2>
+<button onclick="toggleTheme()">Toggle Light / Dark</button>
+<button onclick="toggleSound()">Toggle Sound</button>
+<button class="secondary" onclick="showScreen('home')">Back</button>
+</div>
+</div>
+
+<audio id="correctSound" src="https://assets.mixkit.co/sfx/preview/mixkit-correct-answer-tone-2870.mp3"></audio>
+<audio id="wrongSound" src="https://assets.mixkit.co/sfx/preview/mixkit-wrong-answer-fail-notification-946.mp3"></audio>
+
+<script>
+
+// Riddles
+const riddles=[
+{id:5,difficulty:"easy",question:"What has a face and two hands but no arms or legs?",answer:"clock"},
+{id:6,difficulty:"easy",question:"What has a neck but no head?",answer:"bottle"},
+{id:7,difficulty:"easy",question:"What gets wetter the more it dries?",answer:"towel"},
+{id:8,difficulty:"easy",question:"What has an eye but cannot see?",answer:"needle"},
+{id:9,difficulty:"easy",question:"What has legs but cannot walk?",answer:"table"},
+{id:10,difficulty:"easy",question:"What has a ring but no finger?",answer:"phone"},
+{id:11,difficulty:"easy",question:"What runs but never walks?",answer:"water"},
+{id:12,difficulty:"easy",question:"What has ears but cannot hear?",answer:"corn"},
+{id:13,difficulty:"easy",question:"What has a thumb and four fingers but is not alive?",answer:"glove"},
+{id:14,difficulty:"easy",question:"What has many teeth but cannot bite?",answer:"comb"},
+{id:15,difficulty:"easy",question:"What goes up and down but never moves?",answer:"stairs"},
+{id:16,difficulty:"easy",question:"What has a heart that doesn’t beat?",answer:"artichoke"},
+{id:17,difficulty:"easy",question:"What has one head, one foot, and four legs?",answer:"bed"},
+{id:18,difficulty:"easy",question:"What can travel around the world while staying in a corner?",answer:"stamp"},
+{id:19,difficulty:"easy",question:"What has a tail but no body?",answer:"coin"},
+{id:20,difficulty:"easy",question:"What can you catch but not throw?",answer:"cold"},
+{id:21,difficulty:"easy",question:"What has keys but no locks?",answer:"piano"},
+{id:22,difficulty:"easy",question:"What is full of holes but still holds water?",answer:"sponge"},
+{id:23,difficulty:"easy",question:"What comes once in a minute, twice in a moment, but never in a thousand years?",answer:"m"},
+{id:24,difficulty:"easy",question:"What building has the most stories?",answer:"library"},
+{id:25,difficulty:"easy",question:"What has hands but cannot clap?",answer:"clock"},
+{id:26,difficulty:"easy",question:"What has an end but no beginning?",answer:"stick"},
+{id:27,difficulty:"easy",question:"What is always in front of you but can’t be seen?",answer:"future"},
+{id:28,difficulty:"easy",question:"What begins with t, ends with t, and has tea in it?",answer:"teapot"},
+{id:29,difficulty:"easy",question:"What can you break without touching it?",answer:"promise"},
+{id:30,difficulty:"easy",question:"What has a spine but no bones?",answer:"book"},
+{id:31,difficulty:"easy",question:"What kind of tree can you carry in your hand?",answer:"palm"},
+{id:32,difficulty:"easy",question:"What has a bed but never sleeps?",answer:"river"},
+{id:33,difficulty:"easy",question:"What has cities but no houses?",answer:"map"},
+{id:34,difficulty:"easy",question:"What has a bark but no bite?",answer:"tree"},
+{id:35,difficulty:"easy",question:"What is orange and sounds like a parrot?",answer:"carrot"},
+{id:36,difficulty:"easy",question:"What has four wheels and flies?",answer:"garbage truck"},
+{id:37,difficulty:"easy",question:"What is always coming but never arrives?",answer:"tomorrow"},
+{id:38,difficulty:"easy",question:"What is tall when young and short when old?",answer:"candle"},
+{id:39,difficulty:"easy",question:"What has a bottom at the top?",answer:"leg"},
+{id:40,difficulty:"easy",question:"What can fill a room but takes up no space?",answer:"light"},
+{id:41,difficulty:"easy",question:"What has branches but no fruit?",answer:"bank"},
+{id:42,difficulty:"easy",question:"What has stripes and goes around a tiger?",answer:"road"},
+{id:43,difficulty:"easy",question:"What has a shell but no body?",answer:"egg"},
+{id:44,difficulty:"easy",question:"What has a mouth but never eats?",answer:"river"},
+{id:45,difficulty:"easy",question:"What has teeth but doesn’t chew?",answer:"zipper"},
+{id:46,difficulty:"easy",question:"What is always hungry and must be fed?",answer:"fire"},
+{id:47,difficulty:"easy",question:"What is black when clean and white when dirty?",answer:"blackboard"},
+{id:48,difficulty:"easy",question:"What has keys but can’t open doors?",answer:"keyboard"},
+{id:49,difficulty:"easy",question:"What gets sharper the more you use it?",answer:"brain"},
+{id:50,difficulty:"easy",question:"What has no life but can die?",answer:"battery"},
+{id:51,difficulty:"easy",question:"What can fly without wings?",answer:"time"},
+{id:52,difficulty:"easy",question:"What is easy to lift but hard to throw?",answer:"feather"},
+{id:53,difficulty:"easy",question:"What has an eye but no head?",answer:"needle"},
+{id:54,difficulty:"easy",question:"What has a ring but no finger?",answer:"phone"},
+{id:55,difficulty:"easy",question:"What has pages but no words?",answer:"calendar"},
+{id:56,difficulty:"easy",question:"What is white when dirty?",answer:"chalkboard"},
+{id:57,difficulty:"easy",question:"What can you hear but not see?",answer:"sound"},
+{id:58,difficulty:"easy",question:"What is always running but never tired?",answer:"clock"},
+{id:59,difficulty:"easy",question:"What is full but still empty?",answer:"hole"},
+{id:60,difficulty:"easy",question:"What can you hold without touching?",answer:"breath"},
+{id:1,difficulty:"easy",question:"What has keys but can't open locks?",answer:"piano"},
+{id:61,difficulty:"medium",question:"I speak without a mouth and hear without ears. What am I?",answer:"echo"},
+{id:62,difficulty:"medium",question:"The more you take, the more you leave behind. What am I?",answer:"footsteps"},
+{id:63,difficulty:"medium",question:"I have keys but no locks, space but no room. What am I?",answer:"keyboard"},
+{id:64,difficulty:"medium",question:"What disappears as soon as you say its name?",answer:"silence"},
+{id:65,difficulty:"medium",question:"I shave every day, but my beard stays the same. Who am I?",answer:"barber"},
+{id:66,difficulty:"medium",question:"What can run but never walks, has a mouth but never talks?",answer:"river"},
+{id:67,difficulty:"medium",question:"I have lakes with no water and mountains with no stone. What am I?",answer:"map"},
+{id:68,difficulty:"medium",question:"What has a heart that doesn’t beat?",answer:"artichoke"},
+{id:69,difficulty:"medium",question:"The more you remove from me, the bigger I get. What am I?",answer:"hole"},
+{id:70,difficulty:"medium",question:"What is always in front of you but can’t be seen?",answer:"future"},
+{id:71,difficulty:"medium",question:"What has a head and a tail but no body?",answer:"coin"},
+{id:72,difficulty:"medium",question:"What gets broken without being held?",answer:"promise"},
+{id:73,difficulty:"medium",question:"What comes down but never goes up?",answer:"rain"},
+{id:74,difficulty:"medium",question:"What has many rings but no fingers?",answer:"tree"},
+{id:75,difficulty:"medium",question:"What can travel around the world while staying in one spot?",answer:"stamp"},
+{id:76,difficulty:"medium",question:"I have a face and two hands but no arms. What am I?",answer:"clock"},
+{id:77,difficulty:"medium",question:"What has an eye but cannot see?",answer:"needle"},
+{id:78,difficulty:"medium",question:"What has a neck but no head?",answer:"bottle"},
+{id:79,difficulty:"medium",question:"What kind of band never plays music?",answer:"rubber band"},
+{id:80,difficulty:"medium",question:"What has a spine but no bones?",answer:"book"},
+{id:81,difficulty:"medium",question:"I’m tall when I’m young and short when I’m old. What am I?",answer:"candle"},
+{id:82,difficulty:"medium",question:"What begins with t, ends with t, and has tea in it?",answer:"teapot"},
+{id:83,difficulty:"medium",question:"What is always hungry and must be fed?",answer:"fire"},
+{id:84,difficulty:"medium",question:"What has branches but no fruit?",answer:"bank"},
+{id:85,difficulty:"medium",question:"What has teeth but doesn’t bite?",answer:"comb"},
+{id:86,difficulty:"medium",question:"What has an end but no beginning?",answer:"stick"},
+{id:87,difficulty:"medium",question:"What has hands but cannot clap?",answer:"clock"},
+{id:88,difficulty:"medium",question:"What can you catch but not throw?",answer:"cold"},
+{id:89,difficulty:"medium",question:"What has a bottom at the top?",answer:"leg"},
+{id:90,difficulty:"medium",question:"What has pages but no words?",answer:"calendar"},
+{id:91,difficulty:"medium",question:"What has ears but cannot hear?",answer:"corn"},
+{id:92,difficulty:"medium",question:"What has a ring but no finger?",answer:"phone"},
+{id:93,difficulty:"medium",question:"What is black when clean and white when dirty?",answer:"blackboard"},
+{id:94,difficulty:"medium",question:"What can fill a room but takes up no space?",answer:"light"},
+{id:95,difficulty:"medium",question:"What has cities with no houses?",answer:"map"},
+{id:96,difficulty:"medium",question:"What has a bark but no bite?",answer:"tree"},
+{id:97,difficulty:"medium",question:"What is orange and sounds like a parrot?",answer:"carrot"},
+{id:98,difficulty:"medium",question:"What has four wheels and flies?",answer:"garbage truck"},
+{id:99,difficulty:"medium",question:"What is always coming but never arrives?",answer:"tomorrow"},
+{id:100,difficulty:"medium",question:"What gets wetter as it dries?",answer:"towel"},
+{id:101,difficulty:"medium",question:"What can you hold in your right hand but never in your left?",answer:"left hand"},
+{id:102,difficulty:"medium",question:"What has a mouth but never eats?",answer:"river"},
+{id:103,difficulty:"medium",question:"What can fly without wings?",answer:"time"},
+{id:104,difficulty:"medium",question:"What has a thumb and four fingers but isn’t alive?",answer:"glove"},
+{id:105,difficulty:"medium",question:"What kind of coat can only be put on when wet?",answer:"paint"},
+{id:106,difficulty:"medium",question:"What has a bed but never sleeps?",answer:"river"},
+{id:107,difficulty:"medium",question:"What has a tail but no body?",answer:"coin"},
+{id:108,difficulty:"medium",question:"What has a face but no eyes, nose, or mouth?",answer:"clock"},
+{id:109,difficulty:"medium",question:"What has one eye but cannot see?",answer:"needle"},
+{id:110,difficulty:"medium",question:"What can run but never gets tired?",answer:"water"},
+{id:111,difficulty:"medium",question:"What has a shell and makes no sound?",answer:"egg"},
+{id:112,difficulty:"medium",question:"What kind of room has no doors or windows?",answer:"mushroom"},
+{id:113,difficulty:"medium",question:"What has legs but cannot walk?",answer:"table"},
+{id:114,difficulty:"medium",question:"What can you hear but not see?",answer:"sound"},
+{id:115,difficulty:"medium",question:"What is always running but never moves?",answer:"clock"},
+{id:116,difficulty:"medium",question:"What has a neck and two arms but no hands?",answer:"shirt"},
+{id:117,difficulty:"medium",question:"What can you break without touching?",answer:"promise"},
+{id:118,difficulty:"medium",question:"What has a ring but no sound?",answer:"phone"},
+{id:119,difficulty:"medium",question:"What is light as a feather yet the strongest person can’t hold it long?",answer:"breath"},
+{id:120,difficulty:"medium",question:"What has many teeth but cannot chew?",answer:"comb"},
+{id:121,difficulty:"medium",question:"What can go up a chimney down but not down a chimney up?",answer:"umbrella"},
+{id:122,difficulty:"medium",question:"What kind of key opens a banana?",answer:"monkey"},
+{id:123,difficulty:"medium",question:"What has hands and a face but no arms?",answer:"clock"},
+{id:124,difficulty:"medium",question:"What has an eye and a head but cannot see?",answer:"needle"},
+{id:125,difficulty:"medium",question:"What has roots nobody sees?",answer:"mountain"},
+{id:126,difficulty:"medium",question:"What has a neck but no shoulders?",answer:"bottle"},
+{id:127,difficulty:"medium",question:"What can you keep after giving it to someone?",answer:"promise"},
+{id:128,difficulty:"medium",question:"What gets bigger the more you take away?",answer:"hole"},
+{id:129,difficulty:"medium",question:"What has stripes and goes around the world?",answer:"road"},
+{id:130,difficulty:"medium",question:"What has a tongue but cannot talk?",answer:"shoe"},
+{id:131,difficulty:"hard",question:"I have no life, but I can die. What am I?",answer:"battery"},
+{id:132,difficulty:"hard",question:"The person who makes it sells it. The person who buys it never uses it. What is it?",answer:"coffin"},
+{id:133,difficulty:"hard",question:"I am not alive, but I grow. I don’t have lungs, but I need air. What am I?",answer:"fire"},
+{id:134,difficulty:"hard",question:"I have keys but no locks. I have space but no room. You can enter but can’t go outside. What am I?",answer:"keyboard"},
+{id:135,difficulty:"hard",question:"The more you take, the more you leave behind. What am I?",answer:"footsteps"},
+{id:136,difficulty:"hard",question:"I’m light as a feather, yet the strongest person can’t hold me long. What am I?",answer:"breath"},
+{id:137,difficulty:"hard",question:"What can run but never walks, has a mouth but never talks?",answer:"river"},
+{id:138,difficulty:"hard",question:"What has roots nobody sees, is taller than trees, up it goes but never grows?",answer:"mountain"},
+{id:139,difficulty:"hard",question:"I speak without a mouth and hear without ears. What am I?",answer:"echo"},
+{id:140,difficulty:"hard",question:"What disappears the moment you say its name?",answer:"silence"},
+{id:141,difficulty:"hard",question:"I have branches, but no fruit, trunk, or leaves. What am I?",answer:"bank"},
+{id:142,difficulty:"hard",question:"What has cities with no houses, rivers with no water, and forests with no trees?",answer:"map"},
+{id:143,difficulty:"hard",question:"What can travel around the world while staying in one corner?",answer:"stamp"},
+{id:144,difficulty:"hard",question:"What gets wetter as it dries?",answer:"towel"},
+{id:145,difficulty:"hard",question:"What has a head and a tail but no body?",answer:"coin"},
+{id:146,difficulty:"hard",question:"What can you catch but not throw?",answer:"cold"},
+{id:147,difficulty:"hard",question:"What begins with t, ends with t, and has tea in it?",answer:"teapot"},
+{id:148,difficulty:"hard",question:"What kind of room has no doors or windows?",answer:"mushroom"},
+{id:149,difficulty:"hard",question:"What has one eye but cannot see?",answer:"needle"},
+{id:150,difficulty:"hard",question:"What has many rings but no fingers?",answer:"tree"},
+{id:151,difficulty:"hard",question:"The more you remove from me, the bigger I get. What am I?",answer:"hole"},
+{id:152,difficulty:"hard",question:"What can fill a room but takes up no space?",answer:"light"},
+{id:153,difficulty:"hard",question:"What has a spine but no bones?",answer:"book"},
+{id:154,difficulty:"hard",question:"What has a face and two hands but no arms or legs?",answer:"clock"},
+{id:155,difficulty:"hard",question:"What kind of coat can be put on only when wet?",answer:"paint"},
+{id:156,difficulty:"hard",question:"What has a bark but no bite?",answer:"tree"},
+{id:157,difficulty:"hard",question:"What has a bed but never sleeps?",answer:"river"},
+{id:158,difficulty:"hard",question:"What has ears but cannot hear?",answer:"corn"},
+{id:159,difficulty:"hard",question:"What has a ring but no finger?",answer:"phone"},
+{id:160,difficulty:"hard",question:"What is always coming but never arrives?",answer:"tomorrow"},
+{id:161,difficulty:"hard",question:"What is tall when young and short when old?",answer:"candle"},
+{id:162,difficulty:"hard",question:"What has a thumb and four fingers but is not alive?",answer:"glove"},
+{id:163,difficulty:"hard",question:"What is black when clean and white when dirty?",answer:"blackboard"},
+{id:164,difficulty:"hard",question:"What can you hold without touching?",answer:"breath"},
+{id:165,difficulty:"hard",question:"What has legs but cannot walk?",answer:"table"},
+{id:166,difficulty:"hard",question:"What is full of holes but still holds water?",answer:"sponge"},
+{id:167,difficulty:"hard",question:"What has an end but no beginning?",answer:"stick"},
+{id:168,difficulty:"hard",question:"What can you break without touching?",answer:"promise"},
+{id:169,difficulty:"hard",question:"What has teeth but cannot chew?",answer:"comb"},
+{id:170,difficulty:"hard",question:"What runs but never walks?",answer:"water"},
+{id:171,difficulty:"hard",question:"What kind of key opens a banana?",answer:"monkey"},
+{id:172,difficulty:"hard",question:"What has a tail but no body?",answer:"coin"},
+{id:173,difficulty:"hard",question:"What has a neck but no head?",answer:"bottle"},
+{id:174,difficulty:"hard",question:"What can fly without wings?",answer:"time"},
+{id:175,difficulty:"hard",question:"What has hands but cannot clap?",answer:"clock"},
+{id:176,difficulty:"hard",question:"What building has the most stories?",answer:"library"},
+{id:177,difficulty:"hard",question:"What can go up a chimney down but not down a chimney up?",answer:"umbrella"},
+{id:178,difficulty:"hard",question:"What kind of band never plays music?",answer:"rubber band"},
+{id:179,difficulty:"hard",question:"What has a mouth but never eats?",answer:"river"},
+{id:180,difficulty:"hard",question:"What has branches but no fruit?",answer:"bank"},
+{id:181,difficulty:"hard",question:"What has cities but no people?",answer:"map"},
+{id:182,difficulty:"hard",question:"What is easy to lift but hard to throw?",answer:"feather"},
+{id:183,difficulty:"hard",question:"What has pages but no words?",answer:"calendar"},
+{id:184,difficulty:"hard",question:"What has a heart that doesn’t beat?",answer:"artichoke"},
+{id:185,difficulty:"hard",question:"What is orange and sounds like a parrot?",answer:"carrot"},
+{id:186,difficulty:"hard",question:"What has four wheels and flies?",answer:"garbage truck"},
+{id:187,difficulty:"hard",question:"What is always hungry and must be fed?",answer:"fire"},
+{id:188,difficulty:"hard",question:"What has a shell but no body?",answer:"egg"},
+{id:189,difficulty:"hard",question:"What gets sharper the more you use it?",answer:"brain"},
+{id:190,difficulty:"hard",question:"What has stripes and goes around the world?",answer:"road"},
+{id:191,difficulty:"hard",question:"What has a bottom at the top?",answer:"leg"},
+{id:192,difficulty:"hard",question:"What has a tongue but cannot talk?",answer:"shoe"},
+{id:193,difficulty:"hard",question:"What kind of tree can you carry in your hand?",answer:"palm"},
+{id:194,difficulty:"hard",question:"What has a head and a foot but no body?",answer:"bed"},
+{id:195,difficulty:"hard",question:"What can you hear but not see?",answer:"sound"},
+{id:196,difficulty:"hard",question:"What has roots nobody sees?",answer:"mountain"},
+{id:197,difficulty:"hard",question:"What gets bigger the more you take away?",answer:"hole"},
+{id:198,difficulty:"hard",question:"What is always running but never tired?",answer:"clock"},
+{id:199,difficulty:"hard",question:"What has a face but no eyes, nose, or mouth?",answer:"clock"},
+{id:200,difficulty:"hard",question:"What has no life but can die?",answer:"battery"},
+{id:201,difficulty:"hard",question:"What can travel without moving?",answer:"time"},
+{id:202,difficulty:"hard",question:"What has a bed but never sleeps?",answer:"river"},
+{id:203,difficulty:"hard",question:"What has an eye and a head but cannot see?",answer:"needle"},
+{id:204,difficulty:"hard",question:"What has keys but no locks?",answer:"piano"},
+{id:205,difficulty:"hard",question:"What has ears but cannot listen?",answer:"corn"},
+{id:206,difficulty:"hard",question:"What has a neck but no shoulders?",answer:"bottle"},
+{id:207,difficulty:"hard",question:"What can you keep after giving it away?",answer:"promise"},
+{id:208,difficulty:"hard",question:"What has a ring but no sound?",answer:"phone"},
+{id:209,difficulty:"hard",question:"What has many teeth but no mouth?",answer:"comb"},
+{id:210,difficulty:"hard",question:"What can be cracked, made, told, and played?",answer:"joke"}, {id:2,difficulty:"easy",question:"What has hands but cannot clap?",answer:"clock"},
+{id:3,difficulty:"medium",question:"The more you take, the more you leave behind.",answer:"footsteps"},
+{id:4,difficulty:"hard",question:"What gets wetter the more it dries?",answer:"towel"}
+];
+
+let currentRiddle;
+let used=[];
+let score=localStorage.getItem("score")||0;
+let timerInterval;
+let sound=true;
+
+document.getElementById("scoreDisplay").innerText="Score: "+score;
+
+// Screen switching
+function showScreen(id){
+document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
+document.getElementById(id).classList.add("active");
+if(id==="leaderboard"){
+document.getElementById("bestScore").innerText="Best Score: "+score;
+}
+}
+
+// Non-repeating
+function getRiddle(level){
+let available=riddles.filter(r=>r.difficulty===level&&!used.includes(r.id));
+if(available.length===0){used=[];available=riddles.filter(r=>r.difficulty===level);}
+let r=available[Math.floor(Math.random()*available.length)];
+used.push(r.id);
+return r;
+}
+
+function startGame(){
+let level=document.getElementById("difficulty").value;
+currentRiddle=getRiddle(level);
+document.getElementById("question").innerText=currentRiddle.question;
+startTimer();
+}
+function submitAnswer() {
+    clearInterval(timerInterval);
+
+    let user = document.getElementById("answer").value.trim().toLowerCase();
+    let result = document.getElementById("result");
+
+    // Prevent empty submissions
+    if (user === "") {
+        result.innerText = "Please enter an answer first.";
+        result.style.color = "#ff9800"; // warning color
+        return;
+    }
+
+    // Check if answer is correct
+    if (user === currentRiddle.answer.toLowerCase()) {
+        result.className = "correct";
+        result.innerHTML = "Correct!<br>Answer: <strong>" + currentRiddle.answer + "</strong>";
+        if (sound) document.getElementById("correctSound").play();
+        score++;
+    } else {
+        result.className = "wrong";
+        result.innerHTML = "Wrong!<br>Correct Answer: <strong>" + currentRiddle.answer + "</strong>";
+        if (sound) document.getElementById("wrongSound").play();
+    }
+
+    // Update score display
+    localStorage.setItem("score", score);
+    document.getElementById("scoreDisplay").innerText = "Score: " + score;
+
+    // After 2 seconds, clear input & result, then load next riddle
+    setTimeout(() => {
+        document.getElementById("answer").value = "";
+        result.innerHTML = "";
+        startGame();
+    }, 2000);
+}
+
+// Timer
+function startTimer(){
+let time=15;
+document.getElementById("timer").innerText="Time: "+time;
+timerInterval=setInterval(()=>{
+time--;
+document.getElementById("timer").innerText="Time: "+time;
+if(time<=0){
+clearInterval(timerInterval);
+document.getElementById("result").innerHTML="Time Up<br>Answer: <strong>"+currentRiddle.answer+"</strong>";
+}
+},1000);
+}
+
+// Daily
+function loadDaily(){
+let today=new Date().toDateString();
+if(localStorage.getItem("dailyDate")!==today){
+let r=riddles[Math.floor(Math.random()*riddles.length)];
+localStorage.setItem("dailyRiddle",JSON.stringify(r));
+localStorage.setItem("dailyDate",today);
+}
+let r=JSON.parse(localStorage.getItem("dailyRiddle"));
+document.getElementById("dailyQuestion").innerText=r.question;
+}
+loadDaily();
+
+function checkDaily(){
+let r=JSON.parse(localStorage.getElementById?localStorage.getItem("dailyRiddle"):localStorage.getItem("dailyRiddle"));
+let user=document.getElementById("dailyAnswer").value.toLowerCase().trim();
+let result=document.getElementById("dailyResult");
+
+if(user===r.answer){
+result.className="correct";
+result.innerText="Correct! Answer: "+r.answer;
+}else{
+result.className="wrong";
+result.innerText="Wrong! Correct Answer: "+r.answer;
+}
+}
+
+// Settings
+function toggleTheme(){document.body.classList.toggle("light");}
+function toggleSound(){sound=!sound;alert("Sound: "+(sound?"ON":"OFF"));}
+function resetScore(){score=0;localStorage.setItem("score",0);alert("Score Reset");}
+
+// Particles
+const canvas=document.getElementById("particles");
+const ctx=canvas.getContext("2d");
+canvas.width=window.innerWidth;
+canvas.height=window.innerHeight;
+
+let particles=[];
+for(let i=0;i<70;i++){
+particles.push({x:Math.random()*canvas.width,y:Math.random()*canvas.height,size:2,speedX:Math.random()-0.5,speedY:Math.random()-0.5});
+}
+
+function animate(){
+ctx.clearRect(0,0,canvas.width,canvas.height);
+particles.forEach(p=>{
+p.x+=p.speedX;
+p.y+=p.speedY;
+ctx.beginPath();
+ctx.arc(p.x,p.y,p.size,0,Math.PI*2);
+ctx.fillStyle="rgba(255,255,255,0.4)";
+ctx.fill();
+});
+requestAnimationFrame(animate);
+}
+animate();
+
+</script>
+</body>
+</html>
